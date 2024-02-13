@@ -8,6 +8,11 @@
 🔐 Encrypt and Decrypt Bitcoin wallet files using HTML and WebCrypto API and SHA-256 "Same as Bitcoin". Secure your wallet data with password protection. A lightweight and user-friendly tool for securing your Bitcoin. 
 # Bitcoin Wallet Encryption with HTML
 
+
+
+### Coffee Tips--> BTC: 1P6gz8bggna5s93th9CxNommxcNivN2bPp 
+
+
 This project provides a simple HTML-based tool for encrypting and decrypting Bitcoin wallet files. The encryption is done using the WebCrypto API, allowing users to secure their wallet data with a password.
 
 ## Table of Contents

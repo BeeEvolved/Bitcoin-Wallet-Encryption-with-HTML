@@ -1,4 +1,7 @@
-![Encrypt Bitcoin Wallet with HTML](url)
+
+<p align="center">
+  <img src="https://github.com/BeeEvolved/Bitcoin-Wallet-Encryption-with-HTML/blob/main/encrypt.jpg" alt="Project Logo">
+</p>
 
 
 # Bitcoin-Wallet-Encryption-with-HTML

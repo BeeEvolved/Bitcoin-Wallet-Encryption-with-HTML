@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <title>Encrypt Bitcoin Wallet with HTML</title>
+
+
+    <style>
+        form {
+            display: grid;
+            grid-template-columns: max-content max-content;
+            grid-gap: 10px;
+            align-items: center;
+        }
+
+        .grid-1-l {
+            grid-row: 1;
+            grid-column: 1;
+        }
+
+        .grid-1-r {
+            grid-row: 1;
+            grid-column: 2;
+        }
+
+        .grid-2-l {
+            grid-row: 2;
+            grid-column: 1;
+        }
+
+        .grid-2-r {
+            grid-row: 2;
+            grid-column: 2;
+        }
+
+        .grid-3-l {
+            grid-row: 3;
+            grid-column: 1;
+        }
+
+        .grid-3-r {
+            grid-row: 3;
+            grid-column: 2;
+        }
+
+        .grid-4-r {
+            grid-row: 4;
+            grid-column: 2;
+        }
+        body {
+        color: white;
+        }
+
+        h1 {
+        color: white;
+        margin-left: 25px;
+        }
+        h2 {
+        color: white;
+        margin-left: 5px;
+        }
+        p {
+        margin: 0;
+        text-indent: 3ch;
+        }
+        html {
+        background: url(background.jpg) no-repeat center center fixed;
+        background-size: cover;
+        }
+    </style>
+</head>
+
+<body style="text-align: center">
+    <h1>Encrypt Bitcoin Wallet with HTML</h1>
+    <h2> <a href="https://github.com/BeeEvolved/Bitcoin-Wallet-Encryption-with-HTML" target="_blank">Documentation-GIT</a></h2>
+
+    <noscript>
+        Bitcoin HTML wallet Encrypt will not work without JavaScript enabled!<br />
+    </noscript>
+    <form action="javascript:;" style="display:none">
+        <div class="grid-1-l">
+            <label for="file">File to encrypt:</label>
+        </div>
+        <br>
+        <div class="grid-1-r">
+            <input type="file" id="file" accept=".txt" autofocus>
+        </div>
+        .................
+        <div class="grid-2-l">
+            <label for="password">Password:</label>
+        </div>
+        <div class="grid-2-r">
+            <input type="password" id="password">
+        </div>
+        .................
+        <div class="grid-3-l">
+            <label for="password_repeated">Repeat password:</label>
+        </div>
+        <div class="grid-3-r">
+            <input type="password" id="password_repeated">
+        </div>
+        .................
+        <div class="grid-4-r">
+            <input type="submit" value="Encrypt file">
+        </div>
+        .................
+        .................
+
+    </form>
+    <script>
+        'use strict';
+
+        function getRandomBytes(num) {
+            let bytes = new Uint8Array(num);
+            window.crypto.getRandomValues(bytes);
+            return bytes;
+        }
+
+        function readFile(file) {
+            const reader = new FileReader();
+
+            return new Promise((resolve, reject) => {
+                reader.onerror = () => {
+                    reader.abort();
+                    reject(new DOMException('Cannot read input file.'));
+                };
+
+                reader.onload = () => {
+                    resolve(new Uint8Array(reader.result));
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        };
+
+        function preprendFilename(filename, data_bytes) {
+            const filename_bytes = new TextEncoder('utf-8').encode(filename + '/');
+            const combined_bytes = new Uint8Array(filename_bytes.length + data_bytes.length);
+            combined_bytes.set(filename_bytes, 0);
+            combined_bytes.set(data_bytes, filename_bytes.length);
+            return combined_bytes;
+        }
+
+        function deriveKey(password, salt) {
+            const passwordBytes = new TextEncoder('utf-8').encode(password);
+            return window.crypto.subtle.digest('SHA-256', passwordBytes)
+                .then(hashBuffer => {
+                    return window.crypto.subtle.importKey(
+                        'raw',
+                        hashBuffer, {
+                            name: 'PBKDF2'
+                        },
+                        false,
+                        ['deriveKey']
+                    );
+                })
+                .then(function (key) {
+                    return window.crypto.subtle.deriveKey({
+                            name: 'PBKDF2',
+                            salt,
+                            iterations: 200000,
+                            hash: {
+                                name: 'SHA-256'
+                            }
+                        },
+                        key, {
+                            name: 'AES-GCM',
+                            length: 128
+                        },
+                        false,
+                        ['encrypt']
+                    )
+                });
+        }
+
+        function encrypt(key, iv, bytes) {
+            return window.crypto.subtle.encrypt({
+                name: 'AES-GCM',
+                length: 128,
+                iv
+            }, key, bytes);
+        }
+
+        function base64ArrayBuffer(arrayBuffer) {
+            let base64 = '';
+            const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+            const bytes = new Uint8Array(arrayBuffer);
+            const byteLength = bytes.byteLength;
+            const byteRemainder = byteLength % 3;
+            const mainLength = byteLength - byteRemainder;
+
+            let a, b, c, d;
+            let chunk;
+
+            // Main loop deals with bytes in chunks of 3
+            for (var i = 0; i < mainLength; i = i + 3) {
+                // Combine the three bytes into a single integer
+                chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+
+                // Use bitmasks to extract 6-bit segments from the triplet
+                a = (chunk & 16515072) >> 18; // 16515072 = (2^6 - 1) << 18
+                b = (chunk & 258048) >> 12; // 258048   = (2^6 - 1) << 12
+                c = (chunk & 4032) >> 6; // 4032     = (2^6 - 1) << 6
+                d = chunk & 63; // 63       = 2^6 - 1
+
+                // Convert the raw binary segments to the appropriate ASCII encoding;
+                base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
+            }
+
+            // Deal with the remaining bytes and padding
+            if (byteRemainder == 1) {
+                chunk = bytes[mainLength];
+
+                a = (chunk & 252) >> 2; // 252 = (2^6 - 1) << 2
+
+                // Set the 4 least significant bits to zero
+                b = (chunk & 3) << 4; // 3   = 2^2 - 1
+
+                base64 += encodings[a] + encodings[b] + '==';
+            } else if (byteRemainder == 2) {
+                chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
+
+                a = (chunk & 64512) >> 10; // 64512 = (2^6 - 1) << 10
+                b = (chunk & 1008) >> 4; // 1008  = (2^6 - 1) << 4
+
+                // Set the 2 least significant bits to zero
+                c = (chunk & 15) << 2; // 15    = 2^4 - 1
+
+                base64 += encodings[a] + encodings[b] + encodings[c] + '=';
+            }
+
+            return base64;
+        }
+
+        function serialize(salt, iv, cipher_buffer) {
+            const payload = JSON.stringify({
+                salt: Array.prototype.slice.call(salt),
+                iv: Array.prototype.slice.call(iv),
+                encrypted: base64ArrayBuffer(cipher_buffer)
+            });
+            const decryptor_html = DECRYPTOR_TEMPLATE.replace('{{___PAYLOAD___}}', payload);
+            return new TextEncoder('utf-8').encode(decryptor_html);
+        }
+
+        function download(filename, buffer) {
+            const a = document.createElement('a');
+            a.style = 'display: none';
+            document.body.appendChild(a);
+            const blob = new Blob([buffer], {
+                type: 'application/octet-stream'
+            });
+            const url = window.URL.createObjectURL(blob);
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function runEncrypt() {
+            if (!window.crypto) {
+                alert(
+                    'Full support for the WebCrypto API is needed for decryption. Please use one of the following browsers: Chrome 37+, Firefox 34+, Safari 7+, Opera 24+'
+                )
+                return;
+            }
+
+            const file = document.getElementById('file').files[0];
+            if (!file) {
+                alert('Select a file first.');
+                return;
+            }
+            const password = document.getElementById('password').value;
+            if (password != document.getElementById('password_repeated').value) {
+                alert('Passwords must match.');
+                return;
+            }
+
+            const encryptButton = document.querySelector('input[type=submit]');
+            encryptButton.disabled = true;
+            encryptButton.value = 'Encrypting...';
+
+            const salt = getRandomBytes(16);
+            const iv = getRandomBytes(16);
+
+            readFile(file)
+                .then(file_bytes => preprendFilename(file.name, file_bytes))
+                .then(payload_bytes => deriveKey(password, salt)
+                    .then(key => encrypt(key, iv, payload_bytes)))
+                .then(buffer => serialize(salt, iv, buffer))
+                .then(buffer => download(file.name + '.html', buffer))
+                .catch(e => alert('Error during encryption: ' + e.message))
+                .finally(() => {
+                    encryptButton.disabled = false;
+                    encryptButton.value = 'Encrypt file';
+                });
+        }
+
+        document.querySelector('form').addEventListener('submit', e => {
+            e.preventDefault();
+            runEncrypt();
+        });
+        document.querySelector('form').style.display = 'block';
+
+        const DECRYPTOR_TEMPLATE =
+            `
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Encrypt Bitcoin Wallet with HTML</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <noscript>
+       Encrypt Bitcoin Wallet with HTML Decryption will not work without JavaScript enabled!<br/>
+    </noscript>
+    <form action="javascript:;" style="display:none">
+        <label for="password">Password:</label>
+        <input type="password" autofocus>
+        <input type="submit" value="Decrypt file">
+    </form>
+    <script id="data" type="application/json">
+        {{___PAYLOAD___}}
+    <\/script>
+    <script>
+        if (window.crypto && !window.crypto.subtle && window.crypto.webkitSubtle) {
+            window.crypto.subtle = window.crypto.webkitSubtle;
+        }
+
+        function base64ToArray(base64) {
+            return new Uint8Array(atob(base64).split('').map(function (c) {
+                return c.charCodeAt(0);
+            }));
+        }
+
+        function deriveKey(password, salt) {
+            var passwordBytes = new TextEncoder('utf-8').encode(password);
+
+            return window.crypto.subtle.digest('SHA-256', passwordBytes)
+                .then(hashBuffer => {
+                    return window.crypto.subtle.importKey(
+                        'raw',
+                        hashBuffer, {
+                            name: 'PBKDF2'
+                        },
+                        false,
+                        ['deriveKey']
+                    );
+                })
+                .then(function (key) {
+                    return window.crypto.subtle.deriveKey({
+                            name: 'PBKDF2',
+                            salt: salt,
+                            iterations: 200000,
+                            hash: {
+                                name: 'SHA-256'
+                            }
+                        },
+                        key, {
+                            name: 'AES-GCM',
+                            length: 128
+                        },
+                        false,
+                        ['decrypt']
+                    )
+                });
+        }
+
+        function decrypt(key, iv, bytes) {
+            return window.crypto.subtle.decrypt({
+                name: 'AES-GCM',
+                length: 128,
+                iv: iv
+            }, key, bytes);
+        }
+
+        function extractDecryptedFile(buffer) {
+            var bytes = new Uint8Array(buffer);
+            var slash_pos = Array.prototype.indexOf.call(bytes, '/'.charCodeAt(0));
+            if (slash_pos == -1) {
+                throw 'Decrypted data is corrupted';
+            } else {
+                var name = new TextDecoder('utf-8').decode(new Uint8Array(Array.prototype.slice.call(bytes, 0, slash_pos)));
+                var content = new Uint8Array(Array.prototype.slice.call(bytes, slash_pos + 1));
+                return {
+                    name: name,
+                    content: content
+                };
+            }
+        }
+
+        function download(file) {
+            var a = document.createElement('a');
+            a.style = 'display: none';
+            document.body.appendChild(a);
+            var blob = new Blob([file.content]);
+            var url = window.URL.createObjectURL(blob);
+            a.href = url;
+            a.download = file.name;
+            a.click();
+            setTimeout(function () {
+                window.URL.revokeObjectURL(url);
+            }, 10000);
+        }
+
+        function runDecrypt() {
+            if (!window.crypto) {
+                alert(
+                    'Full support for the WebCrypto API is needed for decryption. Please use one of the following browsers: Chrome 37+, Firefox 34+, Safari 7+, Opera 24+'
+                )
+            }
+
+            var decryptButton = document.querySelector('input[type=submit]');
+            decryptButton.disabled = true;
+            decryptButton.value = 'Decrypting...';
+
+            setTimeout(function () {
+                var data = JSON.parse(document.getElementById('data').textContent);
+                var salt = new Uint8Array(data.salt);
+                var iv = new Uint8Array(data.iv);
+                var encrypted = base64ToArray(data.encrypted);
+
+                var password = document.querySelector('input[type=password]').value;
+                deriveKey(password, salt)
+                    .then(function (key) {
+                        return decrypt(key, iv, encrypted);
+                    })
+                    .catch(function () {
+                        throw 'Wrong password or corrupted file.';
+                    })
+                    .then(extractDecryptedFile)
+                    .then(download)
+                    .catch(function (e) {
+                        alert('Error during decryption: ' + e);
+                    })
+                    .then(function () {
+                        decryptButton.disabled = false;
+                        decryptButton.value = 'Decrypt file';
+                    });
+            }, 0);
+        }
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            runDecrypt();
+        });
+        document.querySelector('form').style.display = 'block';
+    <\/script>
+</body>
+
+</html>`;
+    </script>
+    <div class="row">
+        <div class="row" id="addr-receive" style="padding-top: 0px;">
+
+            <div class="text-left col-xs-12 col-md-12" style="color:white; padding-top: 0px; margin-bottom: 0px; padding-left: 25px; padding-right: 15px; font-weight: bold; font-size: 15px;"><font color="white">Coffee Tips--> BTC:</font> 1P6gz8bggna5s93th9CxNommxcNivN2bPp
+
+            </</div>
+
+        </div>
+    </div>
+</body>
+
+</html>
